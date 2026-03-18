@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D squares engine: numbers 3–9 and their squares with five operations</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 40px;
+            pointer-events: none;
+            z-index: 100;
+            border-left: 6px solid #ffaa00;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            backdrop-filter: blur(5px);
+        }
+        #info h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+        #info p {
+            margin: 5px 0 0;
+            opacity: 0.8;
+            font-size: 1rem;
+        }
+        #info .emph {
+            color: #ffaa00;
+            font-weight: 600;
+        }
+        #controls-note {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.6);
+            background: rgba(20,20,20,0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(4px);
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h1>🔢 <span class="emph">3 · 4 · 5 · 6 · 7 · 8 · 9</span>  →  squares  →  <span class="emph">9 16 25 36 49 64 81</span></h1>
+        <p>five operations orbiting: <strong>+ &nbsp; - &nbsp; × &nbsp; ÷ &nbsp; %</strong> (mod) | same‑digit fractions implied • 3D interactive</p>
+    </div>
+    <div id="controls-note">
+        ⚡ drag to rotate · scroll to zoom · each cube carries its square above & operation ring
+    </div>
+
+    <!-- Import Three.js core, controls, and CSS2DRenderer from CDN -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- setup scene, camera, renderers ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a20); // deep space blue/black
+        
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(12, 8, 22);
+        camera.lookAt(0, 2, 0);
+
+        // WebGL renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // for effect, though we don't cast shadows heavily
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // CSS2 renderer for text labels
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none'; // allow clicks to pass through to canvas
+        document.body.appendChild(labelRenderer.domElement);
+
+        // --- controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        controls.enableZoom = true;
+        controls.maxPolarAngle = Math.PI / 2; // prevent going under ground
+        controls.target.set(0, 2, 0);
+
+        // --- lighting ---
+        // ambient
+        const ambientLight = new THREE.AmbientLight(0x404060);
+        scene.add(ambientLight);
+
+        // main directional light (simulating sun)
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 15, 10);
+        dirLight.castShadow = true;
+        dirLight.receiveShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        const d = 20;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.camera.near = 1;
+        dirLight.shadow.camera.far = 25;
+        scene.add(dirLight);
+
+        // fill lights
+        const backLight = new THREE.PointLight(0x4466ff, 0.5);
+        backLight.position.set(-5, 3, -10);
+        scene.add(backLight);
+
+        const colorLight1 = new THREE.PointLight(0xffaa44, 0.6);
+        colorLight1.position.set(8, 5, 8);
+        scene.add(colorLight1);
+        
+        const colorLight2 = new THREE.PointLight(0x44ffaa, 0.5);
+        colorLight2.position.set(-8, 4, 8);
+        scene.add(colorLight2);
+
+        // --- decorative floor grid and subtle reflective plane ---
+        const gridHelper = new THREE.GridHelper(30, 20, 0x88aaff, 0x335588);
+        gridHelper.position.y = -0.01;
+        scene.add(gridHelper);
+
+        // a slightly transparent plane to catch shadows
+        const planeMat = new THREE.ShadowMaterial({ opacity: 0.25, color: 0x000000 });
+        const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(30, 30),
+            planeMat
+        );
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.y = 0;
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        // --- background stars / particles for game engine feel ---
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 800;
+        const starPositions = new Float32Array(starsCount * 3);
+        for (let i = 0; i < starsCount; i++) {
+            const r = 40 + Math.random() * 30; // distance
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1); // spherical distribution
+            starPositions[i*3] = Math.sin(phi) * Math.cos(theta) * r;
+            starPositions[i*3+1] = Math.sin(phi) * Math.sin(theta) * r * 0.4; // flatten vertically a bit
+            starPositions[i*3+2] = Math.cos(phi) * r;
+        }
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const starsMaterial = new THREE.PointsMaterial({ color: 0xaaccff, size: 0.3, transparent: true });
+        const stars = new THREE.Points(starsGeometry, starsMaterial);
+        scene.add(stars);
+
+        // --- core data: numbers 3..9 and their squares ---
+        const numbers = [3, 4, 5, 6, 7, 8, 9];
+        const squares = [9, 16, 25, 36, 49, 64, 81];
+        
+        // operation symbols for the orbiting rings
+        const ops = ['+', '−', '×', '÷', '%'];  // using minus sign, multiplication dot, division-obelus, mod
+
+        // colors based on number (rainbow)
+        const colors = [
+            0xff5555, // 3 red
+            0xffaa44, // 4 orange
+            0xffdd44, // 5 yellow
+            0x88dd55, // 6 light green
+            0x55ccff, // 7 sky
+            0xaa88ff, // 8 purple
+            0xff88cc  // 9 pink
+        ];
+
+        // We'll create a main group to hold all number groups (optional)
+        const mainGroup = new THREE.Group();
+
+        // Loop to create each number's visual cluster
+        numbers.forEach((num, idx) => {
+            // x positions: spread around center
+            const x = (num - 6) * 2.8;  // gives -8.4, -5.6, -2.8, 0, 2.8, 5.6, 8.4 approx
+            
+            // --- create a group for this number's elements ---
+            const clusterGroup = new THREE.Group();
+            clusterGroup.position.set(x, 0, 0);
+            
+            // ---- base cube representing the number ----
+            const geoBox = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+            const matBox = new THREE.MeshStandardMaterial({ 
+                color: colors[idx],
+                emissive: 0x222222,
+                roughness: 0.3,
+                metalness: 0.2,
+                emissiveIntensity: 0.3
+            });
+            const cube = new THREE.Mesh(geoBox, matBox);
+            cube.castShadow = true;
+            cube.receiveShadow = true;
+            cube.position.y = 0.75; // half height
+            clusterGroup.add(cube);
+
+            // text label for the base number (CSS2D)
+            const numDiv = document.createElement('div');
+            numDiv.textContent = num;
+            numDiv.style.color = 'white';
+            numDiv.style.fontSize = '32px';
+            numDiv.style.fontWeight = 'bold';
+            numDiv.style.textShadow = '2px 2px 4px black';
+            numDiv.style.background = 'rgba(30,30,60,0.7)';
+            numDiv.style.padding = '4px 12px';
+            numDiv.style.borderRadius = '20px';
+            numDiv.style.border = '2px solid rgba(255,255,255,0.3)';
+            numDiv.style.backdropFilter = 'blur(4px)';
+            const numLabel = new CSS2DObject(numDiv);
+            numLabel.position.set(0, 1.8, 0);
+            clusterGroup.add(numLabel);
+
+            // ---- top shape representing the square (using dodecahedron for variety) ----
+            const geoTop = new THREE.DodecahedronGeometry(0.9, 0);
+            const matTop = new THREE.MeshStandardMaterial({ 
+                color: colors[idx],
+                emissive: 0x331100,
+                roughness: 0.2,
+                metalness: 0.3,
+                emissiveIntensity: 0.4
+            });
+            const topShape = new THREE.Mesh(geoTop, matTop);
+            topShape.castShadow = true;
+            topShape.receiveShadow = true;
+            topShape.position.y = 3.2; // above cube
+            clusterGroup.add(topShape);
+
+            // square value label
+            const sqDiv = document.createElement('div');
+            sqDiv.textContent = squares[idx];
+            sqDiv.style.color = '#ffdd88';
+            sqDiv.style.fontSize = '30px';
+            sqDiv.style.fontWeight = '800';
+            sqDiv.style.textShadow = '0 0 15px #ffaa00';
+            sqDiv.style.background = 'rgba(0,0,0,0.5)';
+            sqDiv.style.padding = '4px 14px';
+            sqDiv.style.borderRadius = '30px';
+            sqDiv.style.border = '2px solid #ffaa00';
+            sqDiv.style.backdropFilter = 'blur(4px)';
+            const sqLabel = new CSS2DObject(sqDiv);
+            sqLabel.position.set(0, 4.0, 0);
+            clusterGroup.add(sqLabel);
+
+            // ---- orbiting ring of operation symbols ----
+            const ringGroup = new THREE.Group();
+            ringGroup.position.y = 1.8; // center ring around mid height
+            
+            const opRadius = 2.2;
+            ops.forEach((op, i) => {
+                // small sphere as base for each operation
+                const sphereGeo = new THREE.SphereGeometry(0.25, 16, 16);
+                const sphereMat = new THREE.MeshStandardMaterial({ color: 0xffdd99, emissive: 0x442200 });
+                const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+                sphere.castShadow = true;
+                sphere.receiveShadow = false;
+                
+                // position in a circle
+                const angle = (i / ops.length) * Math.PI * 2;
+                sphere.position.set(Math.cos(angle) * opRadius, 0, Math.sin(angle) * opRadius);
+                ringGroup.add(sphere);
+                
+                // operation text label above the sphere
+                const opDiv = document.createElement('div');
+                opDiv.textContent = op;
+                opDiv.style.color = '#222';
+                opDiv.style.fontSize = '22px';
+                opDiv.style.fontWeight = 'bold';
+                opDiv.style.background = '#ffecaa';
+                opDiv.style.padding = '4px 8px';
+                opDiv.style.borderRadius = '50%';
+                opDiv.style.border = '2px solid #ffaa00';
+                opDiv.style.boxShadow = '0 0 15px gold';
+                opDiv.style.width = '38px';
+                opDiv.style.height = '38px';
+                opDiv.style.display = 'flex';
+                opDiv.style.alignItems = 'center';
+                opDiv.style.justifyContent = 'center';
+                const opLabel = new CSS2DObject(opDiv);
+                opLabel.position.set(Math.cos(angle) * opRadius, 0.3, Math.sin(angle) * opRadius); // slightly above sphere
+                ringGroup.add(opLabel);
+            });
+
+            clusterGroup.add(ringGroup);
+            
+            // store ringGroup reference for animation (rotate)
+            clusterGroup.userData = { ring: ringGroup, speed: 0.005 + idx * 0.001 }; // vary speed slightly
+            
+            mainGroup.add(clusterGroup);
+        });
+
+        scene.add(mainGroup);
+
+        // --- add some floating tiny particles around for atmosphere ---
+        const particleCount = 400;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePos = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            particlePos[i*3] = (Math.random() - 0.5) * 40;
+            particlePos[i*3+1] = (Math.random() * 15);
+            particlePos[i*3+2] = (Math.random() - 0.5) * 40;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0x99bbff, size: 0.1, transparent: true, opacity: 0.6 });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // --- subtle rotating light wisps (just for fun) ---
+        const lightWisp1 = new THREE.PointLight(0x4466ff, 0.8);
+        lightWisp1.position.set(0, 5, 0);
+        scene.add(lightWisp1);
+        
+        const lightWisp2 = new THREE.PointLight(0xff8844, 0.6);
+        lightWisp2.position.set(5, 3, 5);
+        scene.add(lightWisp2);
+
+        // --- animation loop ---
+        let clock = new THREE.Clock();
+
+        function animate() {
+            const delta = clock.getDelta();
+            const elapsedTime = performance.now() / 1000; // seconds
+
+            // rotate each ring group individually
+            mainGroup.children.forEach((cluster, index) => {
+                if (cluster.userData.ring) {
+                    // rotate ring around Y axis with varying speed
+                    cluster.userData.ring.rotation.y += 0.01 * (1 + index * 0.1); 
+                }
+            });
+
+            // slight floating motion for cubes? maybe not to keep labels readable, but small bobbing?
+            // just rotate stars slowly
+            stars.rotation.y += 0.0002;
+            stars.rotation.x += 0.0001;
+
+            // auto-rotate controls
+            controls.update();
+
+            // render
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // --- resize handler ---
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // --- small decorative: add an axis helper? Not needed, but could add a faint one.
+        // const axesHelper = new THREE.AxesHelper(5);
+        // scene.add(axesHelper);
+    </script>
+</body>
+</html>

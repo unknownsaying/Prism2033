@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MineCraft Clone: 3D Palindromic Fractions Engine</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Minecraft', 'Segoe UI', 'Arial', sans-serif;
+            background-color: #1a2a3a;
+        }
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 50, 0.9);
+            backdrop-filter: blur(6px);
+            color: #fff;
+            padding: 16px 28px;
+            border-radius: 12px;
+            border: 4px solid #8b8b8b;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            z-index: 100;
+            pointer-events: none;
+            image-rendering: pixelated;
+            border-image: repeating-linear-gradient(45deg, #6b6b6b, #9a9a9a 10px) 30;
+        }
+        #info-panel h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 400;
+            text-shadow: 3px 3px 0 #3f3f3f;
+            color: #ffffaa;
+        }
+        #info-panel h1 .base {
+            color: #ffaa33;
+            font-weight: 600;
+        }
+        #info-panel h1 .square {
+            color: #88ddff;
+        }
+        #info-panel p {
+            margin: 8px 0 0;
+            opacity: 1;
+            font-size: 1.2rem;
+            text-shadow: 2px 2px 0 #222;
+        }
+        #info-panel .ops {
+            color: #ffcc77;
+        }
+        #status {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            color: #e0e0e0;
+            background: #2d2d2d;
+            padding: 8px 22px;
+            border-radius: 8px;
+            font-size: 1rem;
+            border: 3px solid #7a7a7a;
+            z-index: 100;
+            font-family: 'Minecraft', monospace;
+            box-shadow: inset 0 -3px 0 #3f3f3f;
+            image-rendering: pixelated;
+        }
+        #controls-note {
+            position: absolute;
+            bottom: 25px;
+            right: 25px;
+            color: #ddd;
+            background: #2d2d2d;
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            border: 3px solid #7a7a7a;
+            z-index: 100;
+            font-family: 'Minecraft', monospace;
+            box-shadow: inset 0 -3px 0 #3f3f3f;
+        }
+        .axis-label {
+            color: #fff;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 2px 2px 0 #000;
+            background: rgba(0,0,0,0.5);
+            padding: 4px 8px;
+            border-radius: 4px;
+            border: 2px solid #aaa;
+        }
+    </style>
+    <!-- Import Minecraft-like font -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Press Start 2P', cursive;
+        }
+    </style>
+</head>
+<body>
+    <div id="info-panel">
+        <h1>⛏️ <span class="base">3 4 5 6 7 8 9</span>  →  two 3‑9 digit palindromic fractions (odd/even)  →  <span class="square">9 16 25 36 49 64 81</span></h1>
+        <p>operations <span class="ops">+ &nbsp; − &nbsp; × &nbsp; ÷ &nbsp; %</span>  •  each cluster: 2 fractions + square  •  MineCraft style XYZ</p>
+    </div>
+    <div id="status">🌀 two fractions per base · orbiting operators · fixed square output</div>
+    <div id="controls-note">🖱️ drag to rotate · scroll zoom · axes: X(red) Y(green) Z(blue)</div>
+
+    <!-- Import Three.js and addons -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+        // --- setup scene, camera, renderers (MineCraft style) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+
+        // Camera
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(18, 16, 24);
+        camera.lookAt(0, 5, 0);
+
+        // WebGL renderer with pixelated look
+        const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // CSS2 renderer for crisp labels (pixelated style)
+        const labelRenderer = new CSS2DRenderer();
+        labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        labelRenderer.domElement.style.position = 'absolute';
+        labelRenderer.domElement.style.top = '0px';
+        labelRenderer.domElement.style.left = '0px';
+        labelRenderer.domElement.style.pointerEvents = 'none';
+        labelRenderer.domElement.style.fontFamily = '"Press Start 2P", cursive';
+        document.body.appendChild(labelRenderer.domElement);
+
+        // --- Controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.8;
+        controls.enableZoom = true;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.target.set(0, 5, 0);
+
+        // --- Lighting (like bright sun in Minecraft) ---
+        const ambientLight = new THREE.AmbientLight(0x404c60);
+        scene.add(ambientLight);
+
+        const dirLight = new THREE.DirectionalLight(0xfff5d1, 1.2);
+        dirLight.position.set(10, 30, 15);
+        dirLight.castShadow = true;
+        dirLight.receiveShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 50;
+        dirLight.shadow.camera.left = -20;
+        dirLight.shadow.camera.right = 20;
+        dirLight.shadow.camera.top = 20;
+        dirLight.shadow.camera.bottom = -20;
+        dirLight.shadow.bias = -0.0005;
+        scene.add(dirLight);
+
+        // Fill lights
+        const fillLight1 = new THREE.PointLight(0x88aaff, 0.6);
+        fillLight1.position.set(-8, 12, 10);
+        scene.add(fillLight1);
+        const fillLight2 = new THREE.PointLight(0xffaa88, 0.6);
+        fillLight2.position.set(10, 8, -10);
+        scene.add(fillLight2);
+
+        // --- X Y Z Axes (Minecraft style: colorful lines) ---
+        const axesHelper = new THREE.AxesHelper(15);
+        scene.add(axesHelper);
+
+        // Add axis labels (CSS2D)
+        const makeAxisLabel = (text, color, pos) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            div.style.color = color;
+            div.style.fontSize = '20px';
+            div.style.fontWeight = 'bold';
+            div.style.textShadow = '2px 2px 0 black';
+            div.style.background = 'rgba(0,0,0,0.3)';
+            div.style.padding = '4px 8px';
+            div.style.borderRadius = '4px';
+            const label = new CSS2DObject(div);
+            label.position.copy(pos);
+            scene.add(label);
+        };
+        makeAxisLabel('X', '#ff6666', new THREE.Vector3(16, 0.5, 0));
+        makeAxisLabel('Y', '#66ff66', new THREE.Vector3(0, 16, 0));
+        makeAxisLabel('Z', '#6666ff', new THREE.Vector3(0, 0.5, 16));
+
+        // --- Ground (grass-like with grid) ---
+        const groundGeo = new THREE.PlaneGeometry(40, 40);
+        const groundMat = new THREE.MeshStandardMaterial({ color: 0x7c9c7c, roughness: 0.8, metalness: 0.1 });
+        const ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        // Grid overlay (like chunk borders)
+        const gridHelper = new THREE.GridHelper(40, 20, 0x88aa88, 0x445544);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+
+        // --- Some decorative Minecraft-style cubes (trees or just blocks) around the scene ---
+        function addDecorationBlock(x, y, z, color) {
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const mat = new THREE.MeshStandardMaterial({ color: color });
+            const block = new THREE.Mesh(geo, mat);
+            block.position.set(x, y + 0.5, z);
+            block.castShadow = true;
+            block.receiveShadow = true;
+            scene.add(block);
+        }
+        // Add random blocks to feel like Minecraft
+        for (let i = -5; i <= 5; i+=2) {
+            for (let j = -5; j <= 5; j+=2) {
+                if (Math.random() > 0.6) {
+                    addDecorationBlock(i*2, 0, j*2, 0x8b6b4d);
+                }
+            }
+        }
+
+        // --- Main data: bases, squares, and two palindromic fractions per base ---
+        const bases = [3, 4, 5, 6, 7, 8, 9];
+        const squares = [9, 16, 25, 36, 49, 64, 81];
+
+        // Palindromic fractions (odd/even lengths between 3 and 9 digits)
+        const fractionPairs = [
+            { // base 3
+                left: { num: "313", den: "323", parity: "odd" },
+                right: { num: "4114", den: "4224", parity: "even" }
+            },
+            { // base 4
+                left: { num: "414", den: "424", parity: "odd" },
+                right: { num: "5115", den: "5225", parity: "even" }
+            },
+            { // base 5
+                left: { num: "515", den: "525", parity: "odd" },
+                right: { num: "6116", den: "6226", parity: "even" }
+            },
+            { // base 6
+                left: { num: "616", den: "626", parity: "odd" },
+                right: { num: "7117", den: "7227", parity: "even" }
+            },
+            { // base 7
+                left: { num: "717", den: "727", parity: "odd" },
+                right: { num: "8118", den: "8228", parity: "even" }
+            },
+            { // base 8
+                left: { num: "818", den: "828", parity: "odd" },
+                right: { num: "9119", den: "9229", parity: "even" }
+            },
+            { // base 9
+                left: { num: "919", den: "929", parity: "odd" },
+                right: { num: "10201", den: "10301", parity: "odd" } // 5-digit odd
+            }
+        ];
+
+        // Colors for bases (Minecraft wool colors)
+        const woolColors = [
+            0xb35b5b, // 3 red
+            0xe9a35b, // 4 orange
+            0xe9e35b, // 5 yellow
+            0x5be95b, // 6 green
+            0x5bc9e9, // 7 cyan
+            0x9b5be9, // 8 purple
+            0xe95bb5  // 9 pink
+        ];
+
+        // Main group to hold all clusters
+        const worldGroup = new THREE.Group();
+
+        // Create each base cluster
+        bases.forEach((base, idx) => {
+            const xPos = (base - 6) * 3.2; // spread along X axis
+
+            // Cluster group (all elements for this base)
+            const cluster = new THREE.Group();
+            cluster.position.set(xPos, 1.5, 0);
+
+            // --- Base cube (like a Minecraft block with the number) ---
+            const blockGeo = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+            const blockMat = new THREE.MeshStandardMaterial({ color: woolColors[idx], roughness: 0.4, emissive: 0x221100 });
+            const baseBlock = new THREE.Mesh(blockGeo, blockMat);
+            baseBlock.castShadow = true;
+            baseBlock.receiveShadow = true;
+            baseBlock.position.y = 0.9;
+            cluster.add(baseBlock);
+
+            // Base number label (on top of block)
+            const baseDiv = document.createElement('div');
+            baseDiv.textContent = base;
+            baseDiv.style.color = 'white';
+            baseDiv.style.fontSize = '28px';
+            baseDiv.style.fontWeight = 'bold';
+            baseDiv.style.textShadow = '3px 3px 0 #3f3f3f';
+            baseDiv.style.background = 'rgba(30,30,30,0.8)';
+            baseDiv.style.padding = '6px 12px';
+            baseDiv.style.borderRadius = '8px';
+            baseDiv.style.border = '3px solid #aaa';
+            baseDiv.style.boxShadow = 'inset 0 -3px 0 #5f5f5f';
+            const baseLabel = new CSS2DObject(baseDiv);
+            baseLabel.position.set(0, 2.3, 0);
+            cluster.add(baseLabel);
+
+            // --- Left fraction (A) ---
+            const leftFrac = fractionPairs[idx].left;
+            // numerator block (left)
+            const numLGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const numLMat = new THREE.MeshStandardMaterial({ color: 0xffaa66 });
+            const numLBlock = new THREE.Mesh(numLGeo, numLMat);
+            numLBlock.castShadow = true;
+            numLBlock.receiveShadow = true;
+            numLBlock.position.set(-2.2, 1.2, 1.5);
+            cluster.add(numLBlock);
+            // denominator block (right of numerator)
+            const denLGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const denLMat = new THREE.MeshStandardMaterial({ color: 0x88aaff });
+            const denLBlock = new THREE.Mesh(denLGeo, denLMat);
+            denLBlock.castShadow = true;
+            denLBlock.receiveShadow = true;
+            denLBlock.position.set(-0.8, 1.2, 2.0);
+            cluster.add(denLBlock);
+            // fraction line (thin slab)
+            const lineLGeo = new THREE.BoxGeometry(1.8, 0.2, 0.3);
+            const lineLMat = new THREE.MeshStandardMaterial({ color: 0xccaa88 });
+            const lineLBlock = new THREE.Mesh(lineLGeo, lineLMat);
+            lineLBlock.castShadow = true;
+            lineLBlock.receiveShadow = true;
+            lineLBlock.position.set(-1.5, 1.2, 1.7);
+            lineLBlock.rotation.y = 0.3;
+            cluster.add(lineLBlock);
+
+            // Text labels for left fraction
+            const numLDiv = document.createElement('div');
+            numLDiv.textContent = leftFrac.num;
+            numLDiv.style.color = '#ffaa66';
+            numLDiv.style.fontSize = '16px';
+            numLDiv.style.fontWeight = 'bold';
+            numLDiv.style.background = 'rgba(0,0,0,0.7)';
+            numLDiv.style.padding = '4px 8px';
+            numLDiv.style.borderRadius = '4px';
+            numLDiv.style.border = '2px solid #ffaa66';
+            const numLLabel = new CSS2DObject(numLDiv);
+            numLLabel.position.set(-2.2, 2.1, 1.5);
+            cluster.add(numLLabel);
+
+            const denLDiv = document.createElement('div');
+            denLDiv.textContent = leftFrac.den;
+            denLDiv.style.color = '#88aaff';
+            denLDiv.style.fontSize = '16px';
+            denLDiv.style.fontWeight = 'bold';
+            denLDiv.style.background = 'rgba(0,0,0,0.7)';
+            denLDiv.style.padding = '4px 8px';
+            denLDiv.style.borderRadius = '4px';
+            denLDiv.style.border = '2px solid #88aaff';
+            const denLLabel = new CSS2DObject(denLDiv);
+            denLLabel.position.set(-0.8, 2.1, 2.0);
+            cluster.add(denLLabel);
+
+            // parity left
+            const parLDiv = document.createElement('div');
+            parLDiv.textContent = leftFrac.parity;
+            parLDiv.style.color = '#ccc';
+            parLDiv.style.fontSize = '12px';
+            parLDiv.style.background = 'rgba(0,0,0,0.6)';
+            parLDiv.style.padding = '2px 6px';
+            parLDiv.style.borderRadius = '4px';
+            parLDiv.style.border = '1px solid #aaa';
+            const parLLabel = new CSS2DObject(parLDiv);
+            parLLabel.position.set(-1.5, 0.9, 1.7);
+            cluster.add(parLLabel);
+
+            // --- Right fraction (B) ---
+            const rightFrac = fractionPairs[idx].right;
+            // numerator block
+            const numRGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const numRMat = new THREE.MeshStandardMaterial({ color: 0xffaa66 });
+            const numRBlock = new THREE.Mesh(numRGeo, numRMat);
+            numRBlock.castShadow = true;
+            numRBlock.receiveShadow = true;
+            numRBlock.position.set(2.2, 1.2, -1.2);
+            cluster.add(numRBlock);
+            // denominator block
+            const denRGeo = new THREE.BoxGeometry(1.0, 1.0, 1.0);
+            const denRMat = new THREE.MeshStandardMaterial({ color: 0x88aaff });
+            const denRBlock = new THREE.Mesh(denRGeo, denRMat);
+            denRBlock.castShadow = true;
+            denRBlock.receiveShadow = true;
+            denRBlock.position.set(0.8, 1.2, -1.8);
+            cluster.add(denRBlock);
+            // line
+            const lineRGeo = new THREE.BoxGeometry(1.8, 0.2, 0.3);
+            const lineRMat = new THREE.MeshStandardMaterial({ color: 0xccaa88 });
+            const lineRBlock = new THREE.Mesh(lineRGeo, lineRMat);
+            lineRBlock.castShadow = true;
+            lineRBlock.receiveShadow = true;
+            lineRBlock.position.set(1.5, 1.2, -1.5);
+            lineRBlock.rotation.y = -0.3;
+            cluster.add(lineRBlock);
+
+            // Text labels right
+            const numRDiv = document.createElement('div');
+            numRDiv.textContent = rightFrac.num;
+            numRDiv.style.color = '#ffaa66';
+            numRDiv.style.fontSize = '16px';
+            numRDiv.style.fontWeight = 'bold';
+            numRDiv.style.background = 'rgba(0,0,0,0.7)';
+            numRDiv.style.padding = '4px 8px';
+            numRDiv.style.borderRadius = '4px';
+            numRDiv.style.border = '2px solid #ffaa66';
+            const numRLabel = new CSS2DObject(numRDiv);
+            numRLabel.position.set(2.2, 2.1, -1.2);
+            cluster.add(numRLabel);
+
+            const denRDiv = document.createElement('div');
+            denRDiv.textContent = rightFrac.den;
+            denRDiv.style.color = '#88aaff';
+            denRDiv.style.fontSize = '16px';
+            denRDiv.style.fontWeight = 'bold';
+            denRDiv.style.background = 'rgba(0,0,0,0.7)';
+            denRDiv.style.padding = '4px 8px';
+            denRDiv.style.borderRadius = '4px';
+            denRDiv.style.border = '2px solid #88aaff';
+            const denRLabel = new CSS2DObject(denRDiv);
+            denRLabel.position.set(0.8, 2.1, -1.8);
+            cluster.add(denRLabel);
+
+            // parity right
+            const parRDiv = document.createElement('div');
+            parRDiv.textContent = rightFrac.parity;
+            parRDiv.style.color = '#ccc';
+            parRDiv.style.fontSize = '12px';
+            parRDiv.style.background = 'rgba(0,0,0,0.6)';
+            parRDiv.style.padding = '2px 6px';
+            parRDiv.style.borderRadius = '4px';
+            parRDiv.style.border = '1px solid #aaa';
+            const parRLabel = new CSS2DObject(parRDiv);
+            parRLabel.position.set(1.5, 0.9, -1.5);
+            cluster.add(parRLabel);
+
+            // --- Top block: square result (diamond block) ---
+            const topGeo = new THREE.BoxGeometry(1.8, 1.8, 1.8);
+            const topMat = new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x224466 });
+            const topBlock = new THREE.Mesh(topGeo, topMat);
+            topBlock.castShadow = true;
+            topBlock.receiveShadow = true;
+            topBlock.position.y = 3.6;
+            cluster.add(topBlock);
+
+            // Square label
+            const sqDiv = document.createElement('div');
+            sqDiv.textContent = squares[idx];
+            sqDiv.style.color = '#ffffaa';
+            sqDiv.style.fontSize = '30px';
+            sqDiv.style.fontWeight = 'bold';
+            sqDiv.style.textShadow = '4px 4px 0 #2a2a2a';
+            sqDiv.style.background = 'rgba(40,40,80,0.9)';
+            sqDiv.style.padding = '8px 16px';
+            sqDiv.style.borderRadius = '8px';
+            sqDiv.style.border = '4px solid #88ddff';
+            sqDiv.style.boxShadow = 'inset 0 -4px 0 #226688';
+            const sqLabel = new CSS2DObject(sqDiv);
+            sqLabel.position.set(0, 5.0, 0);
+            cluster.add(sqLabel);
+
+            // --- Orbiting operation ring (five symbols, like minecart wheels) ---
+            const ringGroup = new THREE.Group();
+            ringGroup.position.y = 2.2;
+
+            const ops = ['+', '−', '×', '÷', '%'];
+            const opRadius = 3.4;
+
+            ops.forEach((op, i) => {
+                // small block for each op
+                const orbGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+                const orbMat = new THREE.MeshStandardMaterial({ color: 0xccaa88, emissive: 0x332211 });
+                const orb = new THREE.Mesh(orbGeo, orbMat);
+                orb.castShadow = true;
+                orb.receiveShadow = true;
+                const angle = (i / ops.length) * Math.PI * 2;
+                orb.position.set(Math.cos(angle) * opRadius, 0, Math.sin(angle) * opRadius);
+                ringGroup.add(orb);
+
+                // operation text (CSS2D)
+                const opDiv = document.createElement('div');
+                opDiv.textContent = op;
+                opDiv.style.color = '#222';
+                opDiv.style.fontSize = '24px';
+                opDiv.style.fontWeight = 'bold';
+                opDiv.style.background = '#ffdb9f';
+                opDiv.style.padding = '6px 12px';
+                opDiv.style.borderRadius = '8px';
+                opDiv.style.border = '4px solid #aa7733';
+                opDiv.style.boxShadow = 'inset 0 -4px 0 #885522';
+                opDiv.style.width = '50px';
+                opDiv.style.height = '50px';
+                opDiv.style.display = 'flex';
+                opDiv.style.alignItems = 'center';
+                opDiv.style.justifyContent = 'center';
+                const opLabel = new CSS2DObject(opDiv);
+                opLabel.position.set(Math.cos(angle) * opRadius, 0.6, Math.sin(angle) * opRadius);
+                ringGroup.add(opLabel);
+            });
+
+            cluster.add(ringGroup);
+            cluster.userData = { ring: ringGroup, speed: 0.008 + idx * 0.002 };
+
+            worldGroup.add(cluster);
+        });
+
+        scene.add(worldGroup);
+
+        // --- Floating particles (like Minecraft dust) ---
+        const particleCount = 400;
+        const particleGeo = new THREE.BufferGeometry();
+        const particlePositions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount; i++) {
+            particlePositions[i*3] = (Math.random() - 0.5) * 60;
+            particlePositions[i*3+1] = (Math.random() * 20);
+            particlePositions[i*3+2] = (Math.random() - 0.5) * 60;
+        }
+        particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+        const particleMat = new THREE.PointsMaterial({ color: 0xcccccc, size: 0.2, transparent: true });
+        const particles = new THREE.Points(particleGeo, particleMat);
+        scene.add(particles);
+
+        // --- Animation loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotate operation rings
+            worldGroup.children.forEach((cluster, idx) => {
+                if (cluster.userData.ring) {
+                    cluster.userData.ring.rotation.y += 0.012 * (1 + idx * 0.1);
+                }
+            });
+
+            // Slowly rotate particles
+            particles.rotation.y += 0.0005;
+
+            controls.update();
+
+            renderer.render(scene, camera);
+            labelRenderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- Resize handler ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            labelRenderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>

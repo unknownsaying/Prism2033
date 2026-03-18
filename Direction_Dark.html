@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web-Assembly · Python directional operators</title>
+    <!-- Pyodide for embedded Python control -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, #1a1e2f 0%, #2a2f4f 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .game-engine {
+            background: rgba(20, 25, 40, 0.95);
+            backdrop-filter: blur(8px);
+            border-radius: 28px;
+            padding: 2rem;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.5), 0 0 0 2px #4f5b9e inset;
+            max-width: 1000px;
+            width: 100%;
+            color: #cfd7ff;
+        }
+
+        h1, h3 {
+            text-align: center;
+            letter-spacing: 2px;
+            text-shadow: 0 0 8px #7d8cff;
+        }
+
+        .fraction-generator {
+            background: #0f1422;
+            padding: 1.5rem;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+            border: 1px solid #4a5a9e;
+        }
+
+        .fraction-display {
+            display: flex;
+            justify-content: space-around;
+            margin: 1rem 0;
+            font-size: 1.5rem;
+        }
+
+        .fraction {
+            background: #1a1f35;
+            padding: 1rem 1.8rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 0 #0b0e1a;
+            color: #b3e5ff;
+            border: 1px solid #5f73cf;
+        }
+
+        .stand-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .stand {
+            text-align: center;
+            padding: 1rem 1.5rem;
+            background: linear-gradient(145deg, #1f2940, #11182a);
+            border-radius: 30px;
+            color: white;
+            font-weight: bold;
+            min-width: 170px;
+            border: 2px solid;
+            box-shadow: 0 10px 0 #0b0f1c;
+        }
+
+        .stand.left {
+            border-color: #3d7eff;
+        }
+
+        .stand.right {
+            border-color: #ff4d6d;
+        }
+
+        .slot-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 25px;
+            flex-wrap: wrap;
+        }
+
+        .inventory-slot {
+            background: #2a3150;
+            width: 85px;
+            height: 85px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.4rem;
+            font-weight: bold;
+            position: relative;
+            animation: float 4s ease-in-out infinite;
+            border: 2px solid #6c86e0;
+            box-shadow: 0 6px 0 #1e2340;
+        }
+
+        .infinite-slot {
+            background: linear-gradient(135deg, #1e2645, #131a30);
+            width: 105px;
+            height: 105px;
+            border-radius: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #fff3b0;
+            font-size: 2rem;
+            font-weight: bold;
+            position: relative;
+            border: 3px solid #ffd966;
+            animation: pulse 2s ease-in-out infinite;
+            box-shadow: 0 8px 0 #7f5f30;
+        }
+
+        .infinite-slot::after {
+            content: '∞';
+            position: absolute;
+            font-size: 4rem;
+            opacity: 0.2;
+            color: #ffe484;
+            animation: spin 16s linear infinite;
+        }
+
+        @keyframes float {
+            0%,100%{ transform: translateY(0); }
+            50%{ transform: translateY(-6px); }
+        }
+        @keyframes pulse {
+            0%,100%{ transform: scale(1); box-shadow: 0 0 15px #ffd966; }
+            50%{ transform: scale(1.03); box-shadow: 0 0 30px #ffb347; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .operator-panel {
+            background: #0f1422;
+            border-radius: 40px;
+            padding: 1.5rem;
+            margin: 2rem 0 1.5rem 0;
+            border: 1px solid #7b8ee3;
+        }
+
+        .operator-badge {
+            display: flex;
+            justify-content: space-around;
+            font-size: 1.8rem;
+            margin: 1rem 0;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .op-item {
+            background: #202842;
+            padding: 0.5rem 1.5rem;
+            border-radius: 60px;
+            border: 2px solid #90a0f0;
+            box-shadow: 0 4px 0 #3f4a7a;
+            font-weight: bold;
+            color: #f5e56b;
+            min-width: 100px;
+            text-align: center;
+        }
+
+        .web-assembly-badge {
+            background: #11162c;
+            padding: 1rem;
+            border-radius: 60px;
+            text-align: center;
+            border: 2px solid #ad7eff;
+            font-size: 1.3rem;
+            margin-top: 20px;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+
+        button {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 40px;
+            background: #2a3560;
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            border: 1px solid #7989de;
+            box-shadow: 0 4px 0 #12172f;
+        }
+
+        button:hover {
+            background: #3f4e8c;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 0 #1b2340;
+        }
+
+        .python-status {
+            background: #1d243e;
+            color: #9bb8ff;
+            padding: 0.5rem 1rem;
+            border-radius: 40px;
+            display: inline-block;
+            margin: 10px auto;
+            border: 1px solid #536bc2;
+        }
+
+        #mouse-coord {
+            color: #ffb282;
+        }
+
+        .direction-hint {
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            font-size: 1.1rem;
+            background: #0b1020;
+            padding: 15px;
+            border-radius: 60px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-engine">
+        <h1>⚡ STAND ENGINE · PYTHON CONTROL ⚡</h1>
+        <p style="text-align: center; margin-bottom: 1rem; color:#aebcff;">
+            WASD ➔ swap operators • Mouse move ➔ blend coefficients
+        </p>
+
+        <!-- Python status & loader -->
+        <div id="py-status" class="python-status">🐍 Initializing Pyodide ...</div>
+
+        <!-- Fraction generator ( unchanged look ) -->
+        <div class="fraction-generator">
+            <h3>∞ random fractions (3–9 digits)</h3>
+            <div class="fraction-display">
+                <div class="fraction" id="fraction1">--/--</div>
+                <div class="fraction" id="fraction2">--/--</div>
+            </div>
+            <div class="controls">
+                <button onclick="generateFractions()">🌀 GENERATE</button>
+            </div>
+            <div style="text-align:center; font-size:1rem; background:#00000030; padding:8px; border-radius:30px;">
+                ⚡ bypass + - * / %  →  using 5 custom symbols
+            </div>
+        </div>
+
+        <!-- Operator panel – will be dynamically updated by Python + mouse -->
+        <div class="operator-panel">
+            <h3 style="margin-bottom: 0;">◈ ACTIVE OPERATOR MAP ◈</h3>
+            <div class="operator-badge" id="operatorDisplay">
+                <span class="op-item">► : add</span>
+                <span class="op-item">◄ : sub</span>
+                <span class="op-item">▲ : mul</span>
+                <span class="op-item">▼ : div</span>
+                <span class="op-item">● : mod</span>
+            </div>
+            <div class="direction-hint">
+                <span>W ↑ cycle op1</span> <span>A ← cycle op2</span> <span>S ↓ cycle op3</span>
+                <span>D → cycle op4</span> <span>[shift] cycle op5</span>
+            </div>
+            <div style="display:flex; justify-content:center; gap:30px; font-size:1.2rem;">
+                <span>🐭 mouse X: <span id="mouse-coord-x">0.00</span></span>
+                <span>🐭 mouse Y: <span id="mouse-coord-y">0.00</span></span>
+                <span>blend: <span id="mouse-blend">0.50</span></span>
+            </div>
+        </div>
+
+        <!-- Stand row with infinite inventory slot -->
+        <div class="stand-container">
+            <div class="stand left" id="starPlatinum">⭐ STAR PLATINUM<div style="font-size:0.8rem;">ORA ORA</div></div>
+            <div class="slot-row">
+                <div class="inventory-slot" id="slot1">⚡</div>
+                <div class="infinite-slot" id="infiniteSlot">∞</div>
+                <div class="inventory-slot" id="slot2">⚡</div>
+            </div>
+            <div class="stand right" id="worldStand">🌍 THE WORLD<div style="font-size:0.8rem;">TOKI YO TOMARE</div></div>
+        </div>
+
+        <!-- Inventory grid (infinite) -->
+        <div style="margin: 2rem 0;">
+            <h3 style="text-align: center;">✦ infinite inventory slots ✦</h3>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                <div class="inventory-slot" id="gridSlot1" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot2" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot3" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot4" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot5" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot6" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot7" style="width:auto; height:70px;">🌀</div>
+                <div class="inventory-slot" id="gridSlot8" style="width:auto; height:70px;">🌀</div>
+            </div>
+        </div>
+
+        <div class="web-assembly-badge">
+            🔷 WEB‑ASSEMBLY · PYTHON EMBEDDED · DIRECTION CONTROL 🔷
+        </div>
+    </div>
+
+    <script>
+        // --------------------------------------------------------------
+        //  JavaScript core: fractions, dynamic operators, UI update
+        // --------------------------------------------------------------
+
+        // ----- OPERATOR STORAGE (modifiable by Python) -----
+        // Each operator: { symbol: '►', func: (a,b)=>a+b, description: 'add' }
+        window.operatorList = [
+            { symbol: '►', func: (a,b) => a + b, description: 'add' },
+            { symbol: '◄', func: (a,b) => a - b, description: 'sub' },
+            { symbol: '▲', func: (a,b) => a * b, description: 'mul' },
+            { symbol: '▼', func: (a,b) => a / b, description: 'div' },
+            { symbol: '●', func: (a,b) => a % b, description: 'mod' }
+        ];
+
+        // Helper to update HTML operator display
+        function refreshOperatorDisplay() {
+            const container = document.getElementById('operatorDisplay');
+            if (!container) return;
+            container.innerHTML = '';
+            window.operatorList.forEach(op => {
+                const span = document.createElement('span');
+                span.className = 'op-item';
+                span.innerText = `${op.symbol} : ${op.description}`;
+                container.appendChild(span);
+            });
+        }
+
+        // Generate random fraction (3-9 digits)
+        function generateRandomFraction() {
+            const digits = Math.floor(Math.random() * 7) + 3; // 3-9
+            let num = '', den = '';
+            for (let i=0; i<digits; i++) num += Math.floor(Math.random()*10);
+            for (let i=0; i<digits; i++) den += Math.floor(Math.random()*9)+1;
+            return {
+                numerator: parseInt(num),
+                denominator: parseInt(den),
+                value: parseInt(num) / parseInt(den),
+                display: `${num}/${den}`
+            };
+        }
+
+        // Main update: use current operatorList to compute slot values
+        function updateInventoryWithFractions(frac1, frac2) {
+            const slots = [
+                document.getElementById('slot1'),
+                document.getElementById('slot2'),
+                document.getElementById('infiniteSlot'),
+                document.getElementById('gridSlot1'),
+                document.getElementById('gridSlot2'),
+                document.getElementById('gridSlot3'),
+                document.getElementById('gridSlot4'),
+                document.getElementById('gridSlot5'),
+                document.getElementById('gridSlot6'),
+                document.getElementById('gridSlot7'),
+                document.getElementById('gridSlot8')
+            ];
+
+            // Get current operator functions (by index)
+            const ops = window.operatorList.map(o => o.func);
+            // fallback if any missing
+            while (ops.length < 5) ops.push((a,b)=>a+b);
+
+            // Apply operators to the two fraction values
+            const results = [
+                ops[0](frac1.value, frac2.value),
+                ops[1](frac1.value, frac2.value),
+                ops[2](frac1.value, frac2.value),
+                ops[3](frac1.value, frac2.value),
+                ops[4](frac1.numerator, frac2.numerator)   // use integers for mod
+            ];
+
+            const emojis = ['⚡','💫','✨','🌟','💥','⭐','🔥','💧','🌪️','🌊','⚔️'];
+            slots.forEach((slot, idx) => {
+                if (slot) {
+                    const res = results[idx % results.length];
+                    slot.innerHTML = `${emojis[idx % emojis.length]}<br><small style="font-size:0.6rem;">${res.toFixed(3)}</small>`;
+                }
+            });
+
+            // Update stands with "energy" based on first two results
+            document.getElementById('starPlatinum').innerHTML = `⭐ STAR PLATINUM<div style="font-size:0.7rem;">Energy: ${(results[0]*100).toFixed(1)}%</div>`;
+            document.getElementById('worldStand').innerHTML = `🌍 THE WORLD<div style="font-size:0.7rem;">Time Stop: ${(results[1]*100).toFixed(1)}%</div>`;
+        }
+
+        function generateFractions() {
+            const f1 = generateRandomFraction();
+            const f2 = generateRandomFraction();
+            document.getElementById('fraction1').innerHTML = `🎲 ${f1.display}<br><small>≈ ${f1.value.toFixed(4)}</small>`;
+            document.getElementById('fraction2').innerHTML = `🎲 ${f2.display}<br><small>≈ ${f2.value.toFixed(4)}</small>`;
+            window.currentFrac1 = f1;
+            window.currentFrac2 = f2;
+            updateInventoryWithFractions(f1, f2);
+        }
+
+        // Initialize fractions on load
+        window.onload = () => {
+            generateFractions();
+            setInterval(() => generateFractions(), 7000); // auto refresh
+        };
+
+        // mouse coordinates (for Python blending)
+        window.mouseNormalized = { x: 0.5, y: 0.5 };
+        document.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            window.mouseNormalized = { x, y };
+            document.getElementById('mouse-coord-x').innerText = x.toFixed(2);
+            document.getElementById('mouse-coord-y').innerText = y.toFixed(2);
+            // blend factor = average, for demo
+            const blend = ((x + y)/2).toFixed(2);
+            document.getElementById('mouse-blend').innerText = blend;
+        });
+
+        // --------------------------------------------------------------
+        //  PYODIDE initialisation & Python directional control
+        // --------------------------------------------------------------
+        async function loadPyodideAndRun() {
+            let pyodide = await loadPyodide();
+            document.getElementById('py-status').innerText = '🐍 Pyodide ready · Python listening to WASD + mouse';
+
+            // Python code that defines key handlers and operator modification
+            const pythonCode = `
+import js
+from pyodide.ffi import create_proxy
+from js import document, window, Object
+
+# Get current operator list reference
+operator_list = window.operatorList
+
+# Helper to cycle operator at index: change its symbol & function
+def cycle_operator(index, direction=1):
+    if index < 0 or index >= len(operator_list):
+        return
+    # Simple rotation of operation types
+    op_types = [
+        ('►', lambda a,b: a+b, 'add'),
+        ('◄', lambda a,b: a-b, 'sub'),
+        ('▲', lambda a,b: a*b, 'mul'),
+        ('▼', lambda a,b: a/b, 'div'),
+        ('●', lambda a,b: a%b, 'mod'),
+        ('⧉', lambda a,b: (a+b)/2, 'avg'),        # extra custom
+        ('⌗', lambda a,b: a**0.5 + b**0.5, 'sqrt sum'),
+        ('⨁', lambda a,b: (a*2 + b)/3, 'weighted')
+    ]
+    # find current symbol to determine next
+    current_sym = operator_list[index].symbol
+    try:
+        cur_idx = [t[0] for t in op_types].index(current_sym)
+    except:
+        cur_idx = 0
+    new_idx = (cur_idx + direction) % len(op_types)
+    new_sym, new_func, new_desc = op_types[new_idx]
+    # update javascript object
+    operator_list[index].symbol = new_sym
+    operator_list[index].func = new_func
+    operator_list[index].description = new_desc
+    # refresh display
+    js.refreshOperatorDisplay()
+    # also update fractions with current values if exist
+    if hasattr(window, 'currentFrac1') and window.currentFrac1:
+        js.updateInventoryWithFractions(window.currentFrac1, window.currentFrac2)
+
+# Keyboard handler
+def keydown(e):
+    key = e.key.lower()
+    shift = e.shiftKey
+    # WASD control (with shift for 5th operator)
+    if key == 'w':
+        cycle_operator(0, 1)
+    elif key == 'a':
+        cycle_operator(1, 1)
+    elif key == 's':
+        cycle_operator(2, 1)
+    elif key == 'd':
+        cycle_operator(3, 1)
+    elif key == 'shift' and shift:  # shift itself, but we check shift for op4/5
+        pass
+    # use shift + any key? simpler: shift key alone not easy. We'll do: if shift is held, D cycles op4? but we already have D for op3.
+    # Instead we dedicate Shift+(WASD) for operator 4 and separate for op5 using Shift+E ?
+    # To keep it simple: we use "E" to cycle operator 4 (index 3) and "Q" for operator 5 (index 4)
+    if key == 'e':
+        cycle_operator(3, 1)
+    elif key == 'q':
+        cycle_operator(4, 1)
+    # also allow reverse cycle with shift+key? For simplicity we add "R" for reverse on op5 etc.
+    # but we want clear WASD + mouse. Let's add: "Z" reverse cycle op1, "X" reverse op2, "C" reverse op3, "V" reverse op4, "B" reverse op5
+    if key == 'z':
+        cycle_operator(0, -1)
+    elif key == 'x':
+        cycle_operator(1, -1)
+    elif key == 'c':
+        cycle_operator(2, -1)
+    elif key == 'v':
+        cycle_operator(3, -1)
+    elif key == 'b':
+        cycle_operator(4, -1)
+
+# Mouse move influence: we blend the operator results based on mouse position.
+# Instead of swapping, we can scale the output. But we'll do a more direct: mouse x influences the first operator's weight, y influences second etc.
+# But to keep it visible, we'll modify the operator functions slightly by adding a multiplier.
+# We'll define a mouse handler that updates a multiplier array accessible from js.
+# But easier: we use mouse to directly call cycle_operator based on threshold? No, we want continuous influence.
+# We'll add a "blend" factor that multiplies the result of each operator by (1 + (mouseX-0.5)*0.5) for demonstration.
+# To keep Python integrated, we'll store multiplier in js and use it in operator functions.
+# But operator functions are stored in js as lambdas. We can wrap them with a multiplier from js.
+# For simplicity: on mousemove, we update a global blend array and then reapply fractions.
+# We'll use js to call a python function that updates operators with scaling.
+
+# But to keep this example focused, we'll just display mouse coords and trigger a "blended" update.
+# Let's add a mousemove listener that updates a global factor and refreshes.
+
+def mousemove(e):
+    # get normalized from js already
+    x = window.mouseNormalized.x
+    y = window.mouseNormalized.y
+    # apply a simple effect: multiply the second operator result by (1 + (x-0.5))
+    # we can store a temporary factor in js and use in updateInventory? we'll handle inside js directly.
+    # But to demonstrate python control: we update the operatorList descriptions? no.
+    # Better: we directly call js to refresh fractions using current mouse factor.
+    if hasattr(window, 'currentFrac1') and window.currentFrac1:
+        js.updateInventoryWithFractions(window.currentFrac1, window.currentFrac2)
+
+# Add event listeners
+keydown_proxy = create_proxy(keydown)
+document.addEventListener('keydown', keydown_proxy)
+
+mousemove_proxy = create_proxy(mousemove)
+document.addEventListener('mousemove', mousemove_proxy)
+
+# Keep proxies alive
+js.keydown_proxy = keydown_proxy
+js.mousemove_proxy = mousemove_proxy
+
+print('Python directional controller active')
+            `;
+
+            await pyodide.runPythonAsync(pythonCode);
+            document.getElementById('py-status').innerText = '🐍 Python ready · Use WASD + Q/E + ZXCVB to swap operators';
+        }
+
+        loadPyodideAndRun();
+
+        // Expose refresh function to python
+        window.refreshOperatorDisplay = refreshOperatorDisplay;
+    </script>
+</body>
+</html>

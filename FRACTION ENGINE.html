@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Fraction Engine · Python Kernel · Game Logic</title>
+    <style>
+        /* ----- CSS BUILT PIXEL BY PIXEL ----- */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        /* Main info panel – refined spacing, shadows, and glow */
+        #info-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            background: rgba(12, 18, 34, 0.92);
+            color: #e0ecff;
+            padding: 22px 28px;
+            border-radius: 20px;
+            backdrop-filter: blur(12px);
+            border-left: 6px solid #3d7eff;
+            box-shadow: 0 18px 35px rgba(0, 10, 30, 0.7), 0 0 0 1px rgba(70, 130, 255, 0.3) inset;
+            pointer-events: none;
+            z-index: 100;
+            max-width: 340px;
+            border: 1px solid #2a4a7a;
+            transition: box-shadow 0.3s;
+        }
+
+        #info-panel:hover {
+            box-shadow: 0 20px 40px rgba(0, 30, 70, 0.9), 0 0 0 2px #3d7eff inset;
+        }
+
+        #info-panel h1 {
+            margin: 0 0 12px 0;
+            font-size: 2.1rem;
+            color: #ffffff;
+            letter-spacing: 1.2px;
+            font-weight: 500;
+            text-shadow: 0 3px 8px #1a53ff;
+        }
+
+        #info-panel h2 {
+            margin: 14px 0 6px 0;
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #b8d4ff;
+            border-bottom: 1px solid #2a5f9e;
+            padding-bottom: 6px;
+        }
+
+        #info-panel ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+            list-style: none;
+        }
+
+        #info-panel li {
+            margin: 8px 0;
+            font-size: 1.0rem;
+            color: #c9ddff;
+            line-height: 1.5;
+        }
+
+        #info-panel li::before {
+            content: "▹";
+            color: #5d9eff;
+            font-weight: bold;
+            display: inline-block;
+            width: 1.4em;
+            margin-left: -1.4em;
+        }
+
+        .python-badge {
+            background: #1e3a5f;
+            color: #ffd966;
+            padding: 5px 14px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-top: 14px;
+            letter-spacing: 0.6px;
+            border: 1px solid #f9c74f;
+            box-shadow: 0 2px 8px #0a1a2a;
+        }
+
+        #controls-note {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            color: #b0caf0;
+            background: rgba(8, 16, 28, 0.7);
+            padding: 8px 18px;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+            border: 1px solid #335588;
+            letter-spacing: 0.3px;
+        }
+
+        /* ----- GAME UI: interactive panel & python output ----- */
+        #game-panel {
+            position: absolute;
+            top: 24px;
+            right: 24px;
+            width: 280px;
+            background: rgba(10, 15, 28, 0.9);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 22px 18px;
+            color: #f0f5ff;
+            border: 1px solid #4466aa;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.6);
+            pointer-events: auto;
+            z-index: 200;
+            transition: transform 0.2s;
+        }
+
+        #game-panel h3 {
+            margin: 0 0 16px 0;
+            font-size: 1.6rem;
+            font-weight: 400;
+            color: #bbd9ff;
+            border-bottom: 2px solid #3d6eff;
+            padding-bottom: 8px;
+            text-align: center;
+        }
+
+        #selected-fraction {
+            background: #0b1b2f;
+            padding: 14px;
+            border-radius: 16px;
+            text-align: center;
+            font-size: 2.2rem;
+            font-weight: 500;
+            color: #ffd966;
+            border: 1px solid #3d6eff;
+            margin-bottom: 18px;
+            box-shadow: inset 0 2px 5px #00000055;
+        }
+
+        #python-result {
+            background: #0a1424;
+            padding: 14px;
+            border-radius: 14px;
+            font-family: 'Courier New', monospace;
+            font-size: 1.0rem;
+            color: #aaffaa;
+            border: 1px solid #339966;
+            min-height: 70px;
+            margin-bottom: 20px;
+            white-space: pre-wrap;
+            word-break: break-word;
+            box-shadow: inset 0 2px 8px #00000080;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-bottom: 12px;
+        }
+
+        .game-btn {
+            background: #1e3355;
+            border: none;
+            color: white;
+            padding: 12px 18px;
+            border-radius: 40px;
+            font-size: 1.0rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #3d6eff;
+            transition: all 0.15s;
+            box-shadow: 0 4px 6px #00000040;
+            flex: 1;
+        }
+
+        .game-btn:hover {
+            background: #2b4a7a;
+            border-color: #7aa5ff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 12px #00000060;
+        }
+
+        .game-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px #00000080;
+        }
+
+        #score {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #ffb347;
+            margin-top: 16px;
+        }
+
+        #loading-python {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #111c33;
+            color: white;
+            padding: 20px 40px;
+            border-radius: 60px;
+            font-size: 1.3rem;
+            border: 2px solid #5f9eff;
+            box-shadow: 0 0 30px #1e4c9e;
+            z-index: 300;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="info-panel">
+        <h1>⚛️ 3D FRACTION ENGINE</h1>
+        <p style="margin:5px 0 14px 0; font-size:1.0rem;">equivalent digits · numerator/denominator</p>
+        <h2>🔬 advanced mathematics</h2>
+        <ul>
+            <li>1/2 = 2/4 = 3/6 = 4/8 = 5/10 (rational equivalence)</li>
+            <li>π/e ≈ 1.155 (transcendental ratio)</li>
+            <li>ħ/2 (reduced Planck constant / spin)</li>
+            <li>visualizing field theory & quantum floats</li>
+        </ul>
+        <h2>🐍 python kernel (pyodide)</h2>
+        <ul>
+            <li>sympy simplification & symbolic math</li>
+            <li>real‑time fraction evaluation</li>
+            <li>fractional derivatives / Riemann–Liouville</li>
+        </ul>
+        <div class="python-badge">✨ LIVE PYTHON 3.11 + NUMPY + SYMPY</div>
+    </div>
+
+    <div id="game-panel">
+        <h3>🎮 FRACTION GAME</h3>
+        <div id="selected-fraction">⏺ click any 3D text</div>
+        <div id="python-result">🐍 Python output will appear here</div>
+        <div class="button-row">
+            <button class="game-btn" id="simplify-btn">simplify</button>
+            <button class="game-btn" id="decimal-btn">to decimal</button>
+        </div>
+        <div class="button-row">
+            <button class="game-btn" id="reciprocal-btn">reciprocal</button>
+            <button class="game-btn" id="sqrt-btn">sqrt</button>
+        </div>
+        <div id="score">✨ score: <span id="score-value">0</span></div>
+    </div>
+
+    <div id="controls-note">
+        ⚡ click any fraction → Python computes · drag to rotate · scroll to zoom
+    </div>
+    <div id="loading-python">🔄 loading Python kernel (Pyodide) …</div>
+
+    <!-- Import Three.js and Pyodide -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.128.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.128.0/examples/jsm/"
+            }
+        }
+    </script>
+    <!-- Load Pyodide from CDN -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js"></script>
+
+    <script type="module">
+        // ----- THREE.JS SETUP (based on original, with enhancements for interaction) -----
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- scene, camera, renderer (preserved from original with minor tweaks) ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(6, 2, 8);
+        camera.lookAt(0, 1, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+
+        // --- controls ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 1.2;
+        controls.enableZoom = true;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.target.set(0, 1.2, 0);
+
+        // --- lighting (exactly as original) ---
+        const ambientLight = new THREE.AmbientLight(0x40406b);
+        scene.add(ambientLight);
+        const keyLight = new THREE.DirectionalLight(0xffeedd, 1.2);
+        keyLight.position.set(3, 8, 4);
+        keyLight.castShadow = true;
+        keyLight.receiveShadow = true;
+        keyLight.shadow.mapSize.width = 1024;
+        keyLight.shadow.mapSize.height = 1024;
+        const d = 10;
+        keyLight.shadow.camera.left = -d;
+        keyLight.shadow.camera.right = d;
+        keyLight.shadow.camera.top = d;
+        keyLight.shadow.camera.bottom = -d;
+        keyLight.shadow.camera.near = 2;
+        keyLight.shadow.camera.far = 20;
+        scene.add(keyLight);
+        const fillLight = new THREE.PointLight(0x4466ff, 0.6);
+        fillLight.position.set(-4, 3, 5);
+        scene.add(fillLight);
+        const rimLight = new THREE.PointLight(0xaa88ff, 0.5);
+        rimLight.position.set(-2, 1, -8);
+        scene.add(rimLight);
+
+        // --- grid and floor ---
+        const gridHelper = new THREE.GridHelper(16, 24, 0x77aaff, 0x224477);
+        gridHelper.position.y = -0.1;
+        scene.add(gridHelper);
+        const floorCircleGeo = new THREE.CircleGeometry(8, 32);
+        const floorCircleMat = new THREE.MeshStandardMaterial({ color: 0x112244, emissive: 0x112233, transparent: true, opacity: 0.3, side: THREE.DoubleSide });
+        const floorCircle = new THREE.Mesh(floorCircleGeo, floorCircleMat);
+        floorCircle.rotation.x = -Math.PI / 2;
+        floorCircle.position.y = -0.09;
+        scene.add(floorCircle);
+
+        // --- starfield ---
+        const starsGeo = new THREE.BufferGeometry();
+        const starsCount = 1500;
+        const starsPos = new Float32Array(starsCount * 3);
+        for (let i = 0; i < starsCount * 3; i += 3) {
+            const r = 40 + Math.random() * 60;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            starsPos[i] = r * Math.sin(phi) * Math.cos(theta);
+            starsPos[i+1] = r * Math.sin(phi) * Math.sin(theta) * 0.5;
+            starsPos[i+2] = r * Math.cos(phi);
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(starsPos, 3));
+        const starsMat = new THREE.PointsMaterial({ color: 0x88aadd, size: 0.15, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending });
+        const stars = new THREE.Points(starsGeo, starsMat);
+        scene.add(stars);
+
+        // --- core and quantum particles (unchanged) ---
+        const coreGeo = new THREE.IcosahedronGeometry(0.45, 2);
+        const coreMat = new THREE.MeshStandardMaterial({ color: 0xffaa44, emissive: 0x442200, roughness: 0.2, metalness: 0.1 });
+        const core = new THREE.Mesh(coreGeo, coreMat);
+        core.position.set(0, 1.2, 0);
+        core.castShadow = true;
+        core.receiveShadow = true;
+        scene.add(core);
+
+        const quantumParticlesGeo = new THREE.BufferGeometry();
+        const qCount = 300;
+        const qPos = new Float32Array(qCount * 3);
+        for (let i = 0; i < qCount * 3; i += 3) {
+            const r = 1.6 + Math.random() * 2.2;
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            qPos[i] = r * Math.sin(phi) * Math.cos(theta);
+            qPos[i+1] = r * Math.sin(phi) * Math.sin(theta) + 1.2;
+            qPos[i+2] = r * Math.cos(phi);
+        }
+        quantumParticlesGeo.setAttribute('position', new THREE.BufferAttribute(qPos, 3));
+        const qMat = new THREE.PointsMaterial({ color: 0x77ddff, size: 0.06, blending: THREE.AdditiveBlending });
+        const quantumParticles = new THREE.Points(quantumParticlesGeo, qMat);
+        scene.add(quantumParticles);
+
+        // --- MAIN FRACTION GROUP & INTERACTION DATA ---
+        const fractionGroup = new THREE.Group();
+        scene.add(fractionGroup); // will be populated after font loads
+
+        // Store clickable objects for raycaster
+        const clickableObjects = [];
+
+        // --- define fractions (same as original) ---
+        const fractionItems = [
+            { text: "1/2", color: 0xff7777, pos: [-2.2, 0.8, 1.8] },
+            { text: "2/4", color: 0x77ff77, pos: [1.8, 0.3, 2.2] },
+            { text: "3/6", color: 0x7777ff, pos: [-1.5, 1.6, -1.5] },
+            { text: "4/8", color: 0xffcc66, pos: [2.0, 1.1, -1.3] },
+            { text: "5/10", color: 0xcc88ff, pos: [0.3, 2.0, 1.0] },
+            { text: "π/e", color: 0x66ffff, pos: [2.8, 0.9, -2.0] },
+            { text: "ħ/2", color: 0xff99cc, pos: [-2.5, 0.4, -1.8] },
+            { text: "E/c²", color: 0xaadd88, pos: [-0.8, 0.6, -2.5] }
+        ];
+
+        // --- font loader ---
+        const loader = new THREE.FontLoader();
+        loader.load('https://threejs.org/examples/fonts/helvetiker_regular.typeface.json', function (font) {
+            fractionItems.forEach(item => {
+                const geometry = new THREE.TextGeometry(item.text, {
+                    font: font,
+                    size: 0.65,
+                    height: 0.18,
+                    curveSegments: 8,
+                    bevelEnabled: true,
+                    bevelThickness: 0.02,
+                    bevelSize: 0.02,
+                    bevelOffset: 0,
+                    bevelSegments: 4
+                });
+
+                geometry.computeBoundingBox();
+                const box = geometry.boundingBox;
+                const centerX = (box.max.x + box.min.x) / 2;
+                const centerY = (box.max.y + box.min.y) / 2;
+                const centerZ = (box.max.z + box.min.z) / 2;
+
+                const material = new THREE.MeshStandardMaterial({
+                    color: item.color,
+                    emissive: 0x221122,
+                    roughness: 0.25,
+                    metalness: 0.3,
+                    emissiveIntensity: 0.3
+                });
+
+                const textMesh = new THREE.Mesh(geometry, material);
+                textMesh.castShadow = true;
+                textMesh.receiveShadow = true;
+                textMesh.position.set(-centerX, -centerY, -centerZ);
+
+                // store fraction text in userData for click identification
+                textMesh.userData = { type: 'fraction', fraction: item.text };
+
+                const container = new THREE.Group();
+                container.add(textMesh);
+                container.position.set(item.pos[0], item.pos[1], item.pos[2]);
+
+                container.userData = {
+                    originalY: item.pos[1],
+                    speed: 0.4 + Math.random() * 0.8,
+                    rotSpeedY: 0.005 + Math.random() * 0.01,
+                    rotSpeedX: 0.002 + Math.random() * 0.005
+                };
+
+                // add the container to group, but we want the actual mesh to be clickable
+                fractionGroup.add(container);
+                clickableObjects.push(textMesh); // register the mesh for raycasting
+            });
+
+            // add containers to scene already via fractionGroup
+        });
+
+        // --- orbiting spheres (same, but not clickable) ---
+        const orbCount = 40;
+        const orbGeo = new THREE.SphereGeometry(0.06, 6);
+        const orbMat = new THREE.MeshStandardMaterial({ color: 0x88aaff, emissive: 0x224466 });
+        for (let i = 0; i < orbCount; i++) {
+            const orb = new THREE.Mesh(orbGeo, orbMat);
+            const r = 2.8 + Math.random() * 1.2;
+            const angle = Math.random() * Math.PI * 2;
+            const heightVar = (Math.random() - 0.5) * 3;
+            orb.position.set(
+                Math.cos(angle) * r,
+                1.2 + heightVar,
+                Math.sin(angle) * r
+            );
+            orb.castShadow = true;
+            orb.receiveShadow = false;
+            orb.userData = {
+                r: r,
+                angle: angle,
+                speed: 0.1 + Math.random() * 0.2,
+                height: 1.2 + heightVar,
+                floatSpeed: 0.5 + Math.random()
+            };
+            scene.add(orb);
+        }
+
+        // --- raycaster for click interactions ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        renderer.domElement.addEventListener('click', (event) => {
+            // calculate mouse position in normalized device coordinates
+            const rect = renderer.domElement.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            // check intersections with clickable objects (the text meshes)
+            const intersects = raycaster.intersectObjects(clickableObjects);
+
+            if (intersects.length > 0) {
+                // take the first hit
+                const hit = intersects[0].object;
+                const fractionStr = hit.userData.fraction;
+                document.getElementById('selected-fraction').innerText = fractionStr;
+                // optional: highlight the hit fraction (could add outline, but keep simple)
+            }
+        });
+
+        // ----- PYTHON KERNEL (Pyodide) with sympy and numpy -----
+        let pyodideReady = false;
+        const loadingDiv = document.getElementById('loading-python');
+        const pythonResultDiv = document.getElementById('python-result');
+        const scoreSpan = document.getElementById('score-value');
+        let currentScore = 0;
+
+        async function loadPyodideAndPackages() {
+            loadingDiv.style.display = 'block';
+            try {
+                window.pyodide = await loadPyodide();
+                await pyodide.loadPackage(['sympy', 'numpy']);
+                // Define core Python functions for fraction manipulation
+                await pyodide.runPythonAsync(`
+import sympy as sp
+import math
+
+def simplify_fraction(frac_str):
+    """Simplify a fraction string like '3/6' or evaluate expression like 'π/e'."""
+    try:
+        # Try sympy parsing (handles pi, e, etc.)
+        expr = sp.sympify(frac_str)
+        simplified = sp.simplify(expr)
+        # If it's a rational, return as string
+        return str(simplified)
+    except Exception as e:
+        return f"Error: {e}"
+
+def to_decimal(frac_str, digits=6):
+    try:
+        expr = sp.sympify(frac_str)
+        decimal = expr.evalf(digits)
+        return str(decimal)
+    except Exception as e:
+        return f"Error: {e}"
+
+def reciprocal(frac_str):
+    try:
+        expr = sp.sympify(frac_str)
+        recip = 1 / expr
+        return str(sp.simplify(recip))
+    except Exception as e:
+        return f"Error: {e}"
+
+def sqrt_fraction(frac_str):
+    try:
+        expr = sp.sympify(frac_str)
+        sqrt_expr = sp.sqrt(expr)
+        return str(sp.simplify(sqrt_expr))
+    except Exception as e:
+        return f"Error: {e}"
+`);
+                pyodideReady = true;
+                pythonResultDiv.innerText = '✅ Python kernel ready. Click a fraction!';
+            } catch (error) {
+                pythonResultDiv.innerText = '❌ Pyodide load failed: ' + error;
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+        loadPyodideAndPackages();
+
+        // Helper to run Python function and display result, update score
+        async function runPythonFunction(funcName) {
+            if (!pyodideReady) {
+                pythonResultDiv.innerText = '⏳ Python still loading...';
+                return;
+            }
+            const fractionText = document.getElementById('selected-fraction').innerText;
+            if (fractionText === '⏺ click any 3D text') {
+                pythonResultDiv.innerText = '⚠️ First click a fraction in the 3D scene.';
+                return;
+            }
+            try {
+                const result = await pyodide.runPythonAsync(`${funcName}("${fractionText}")`);
+                pythonResultDiv.innerText = `🐍 ${funcName} → ${result}`;
+                // increase score for each successful computation
+                currentScore += 10;
+                scoreSpan.innerText = currentScore;
+            } catch (e) {
+                pythonResultDiv.innerText = `🐍 Error: ${e.message}`;
+            }
+        }
+
+        // Wire up buttons
+        document.getElementById('simplify-btn').addEventListener('click', () => runPythonFunction('simplify_fraction'));
+        document.getElementById('decimal-btn').addEventListener('click', () => runPythonFunction('to_decimal'));
+        document.getElementById('reciprocal-btn').addEventListener('click', () => runPythonFunction('reciprocal'));
+        document.getElementById('sqrt-btn').addEventListener('click', () => runPythonFunction('sqrt_fraction'));
+
+        // ----- ANIMATION LOOP (same as original, plus keep controls) -----
+        const clock = new THREE.Clock();
+
+        function animate() {
+            const delta = clock.getDelta();
+            const elapsedTime = performance.now() / 1000;
+
+            controls.update();
+
+            // animate fractions: floating and rotation (fractionGroup children are containers)
+            fractionGroup.children.forEach(container => {
+                container.position.y = container.userData.originalY + Math.sin(elapsedTime * container.userData.speed) * 0.35;
+                container.rotation.y += container.userData.rotSpeedY;
+                container.rotation.x += container.userData.rotSpeedX;
+            });
+
+            stars.rotation.y += 0.0001;
+            stars.rotation.x += 0.00005;
+            quantumParticles.rotation.y += 0.001;
+            quantumParticles.rotation.x += 0.0005;
+
+            // animate orbiting spheres (simple circular motion)
+            scene.children.forEach(child => {
+                if (child.isMesh && child.geometry.type === 'SphereGeometry' && child.material.color.getHex() === 0x88aaff) {
+                    child.userData.angle += child.userData.speed * delta * 1.5;
+                    const r = child.userData.r;
+                    const angle = child.userData.angle;
+                    const baseY = child.userData.height;
+                    const bobY = Math.sin(elapsedTime * child.userData.floatSpeed) * 0.15;
+                    child.position.x = Math.cos(angle) * r;
+                    child.position.z = Math.sin(angle) * r;
+                    child.position.y = baseY + bobY;
+                }
+            });
+
+            core.scale.setScalar(1.0 + Math.sin(elapsedTime * 3) * 0.05);
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // resize handler
+        window.addEventListener('resize', onWindowResize, false);
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        console.log('3D Fraction Engine with Python kernel and game logic');
+    </script>
+</body>
+</html>
